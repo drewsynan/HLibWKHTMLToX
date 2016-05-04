@@ -104,9 +104,10 @@ run_c_example url output = do
 run_hs_example :: String -> String -> IO ()
 run_hs_example url output = do
     e <- runMaybeT $ createEnv
-
-    -- nooooo fromJust plz
-    runMaybeT $ hs_example (fromJust e) url output
-    kill <- runMaybeT $ destroyEnv (fromJust e)
-    
-    return ()
+    case e of 
+        Just env -> do
+            runMaybeT $ hs_example env url output
+            runMaybeT $ destroyEnv env
+            return ()
+        Nothing -> do
+            liftIO $ print "Error creating imaging environment :-("

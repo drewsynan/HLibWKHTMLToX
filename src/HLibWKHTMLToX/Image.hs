@@ -18,23 +18,29 @@ import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import Foreign.Storable
 
-createEnv :: (MaybeT IO) ImageEnv
+createEnv :: (MaybeT IO) ImageEnvironment
 createEnv = do
-    status <- liftIO $ c_init 0
-    MaybeT $ do
-        case fromIntegral status of
-            1 -> return $ Just ImageEnv
-            _ -> return $ Nothing
+    c_env <- liftIO $ c_init 0
 
-destroyEnv :: ImageEnv -> (MaybeT IO) Bool
-destroyEnv ImageEnv = do
+    MaybeT $ do
+        if c_env /= nullPtr
+            -- this is hacky, but per the c standard, casting int 0 to a pointer is the null pointer
+            -- also it allows us to tack on a finalizer to the environment (running c_deinit)
+            -- so we don't have to explicitly shut down and free resources.
+            then do
+                env_ptr <- newForeignPtr c_deinit_handle c_env
+                return $ Just env_ptr
+            else return $ Nothing
+
+destroyEnv :: ImageEnvironment -> (MaybeT IO) Bool
+destroyEnv e = do
     status <- liftIO $ c_deinit
     MaybeT $ do
         case fromIntegral status of
             1 -> return $ Just True
             _ -> return $ Nothing
 
-createSettings :: ImageEnv -> (MaybeT IO) Settings
+createSettings :: ImageEnvironment -> (MaybeT IO) Settings
 createSettings e = do
     gs_ptr <- liftIO $ c_create_global_settings
     MaybeT $ do
@@ -45,7 +51,7 @@ createSettings e = do
                 return $ Just gs_foreign_ptr
             else return $ Nothing
 
-setGlobalSetting :: ImageEnv -> Settings -> ConverterSetting -> (MaybeT IO) Settings
+setGlobalSetting :: ImageEnvironment -> Settings -> ConverterSetting -> (MaybeT IO) Settings
 setGlobalSetting env settings (ConverterSetting {param = param, val = val}) = do
     MaybeT $ withForeignPtr settings $ \gs -> do
         status <- liftIO . withCString param $ \p -> do
@@ -56,7 +62,7 @@ setGlobalSetting env settings (ConverterSetting {param = param, val = val}) = do
             1 -> return $ Just settings
             _ -> return $ Nothing
 
-createConverter :: ImageEnv -> Settings -> (MaybeT IO) Converter
+createConverter :: ImageEnvironment -> Settings -> (MaybeT IO) Converter
 createConverter e gs = do
     MaybeT $ withForeignPtr gs $ \gs_ptr -> do
         conv_ptr <- liftIO $ c_create_converter gs_ptr nullPtr
@@ -66,7 +72,7 @@ createConverter e gs = do
                 return $ Just conv_foreign_ptr
             else return $ Nothing
 
-convert :: ImageEnv -> FatConverter -> (MaybeT IO) ByteString
+convert :: ImageEnvironment -> FatConverter -> (MaybeT IO) ByteString
 convert env fc = do
     MaybeT $ withForeignPtr (handle fc) $ \c -> do
         status <- doConversion c

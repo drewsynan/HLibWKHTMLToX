@@ -8,7 +8,10 @@ import Control.Monad.Trans.Maybe
 
 type MaybeIO a = MaybeT IO a
 
-data ImageEnv = ImageEnv
+data C_ENV
+type ImageEnvironmentHandle = Ptr C_ENV
+type ImageEnvironment = ForeignPtr C_ENV
+
 
 data CallbackType = WarningCallback | ErrorCallback | FinishedCallback | PhaseChangedCallback | ProgressChangedCallback
 

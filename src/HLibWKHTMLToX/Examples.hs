@@ -69,7 +69,7 @@ c_example url output = do
 
     return ()
 
-hs_example :: ImageEnv -> String -> String -> (MaybeT IO) ()
+hs_example :: ImageEnvironment -> String -> String -> (MaybeT IO) ()
 hs_example env url output = do
 
     -- Uses ForeignPtr for automatic finilization
@@ -107,7 +107,8 @@ run_hs_example url output = do
     case e of 
         Just env -> do
             runMaybeT $ hs_example env url output
-            runMaybeT $ destroyEnv env
+            --runMaybeT $ destroyEnv env
+            --since we're using foreignPtr now, the finalizer will automagically run
             return ()
         Nothing -> do
             liftIO $ print "Error creating imaging environment :-("

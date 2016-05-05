@@ -7,10 +7,11 @@ import Foreign.C.String
 import Foreign.Ptr
 import System.IO.Unsafe (unsafePerformIO)
 
-foreign import ccall safe "wkhtmltox/image.h wkhtmltoimage_init"                      c_init                     :: CInt -> IO CInt
-
+foreign import ccall safe "wkhtmltox/image.h wkhtmltoimage_init"                      c_init                     :: CInt -> IO ImageEnvironmentHandle
 foreign import ccall safe "wkhtmltox/image.h wkhtmltoimage_deinit"                    c_deinit                   :: IO CInt
-foreign import ccall safe "wkhtmltox/image.h &wkhtmltoimage_deinit"                   c_deinit_handle            :: FunPtr (IO CInt)
+
+-- this is a lie, but a tiny lie
+foreign import ccall safe "wkhtmltox/image.h &wkhtmltoimage_deinit"                   c_deinit_handle            :: FunPtr (ImageEnvironmentHandle -> IO ())
 
 foreign import ccall safe "wkhtmltox/image.h wkhtmltoimage_extended_qt"               c_extended_qt              :: IO CInt
 foreign import ccall safe "wkhtmltox/image.h wkhtmltoimage_version"                   c_version                  :: CString
@@ -21,6 +22,8 @@ foreign import ccall safe "wkhtmltox/image.h wkhtmltoimage_get_global_setting"  
 
 -- foreign import ccall safe "wkhtmltox/image.h wkhtmltoimage_destroy_global_settings"   c_destroy_global_settings  :: SettingsHandle -> IO ()
 -- ^ doesn't exist! sent a throwaway function for now until the finalizer code can be refactored
+-- the settings are freed when the converter finalizer is called. According to the docs, since ownership of the settings
+-- are transferred to the controller object, when it's finalizer is called it will delete the settings too
 foreign import ccall safe "stdlib.h &abs"                                             c_destroy_settings_handle :: FunPtr(SettingsHandle -> IO ())
 
 foreign import ccall safe "wkhtmltox/image.h wkhtmltoimage_create_converter"          c_create_converter         :: SettingsHandle -> Ptr a -> IO ConverterHandle
